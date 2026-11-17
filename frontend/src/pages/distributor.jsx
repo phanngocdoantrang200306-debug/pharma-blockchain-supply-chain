@@ -1,56 +1,18 @@
+
 import { useState } from "react";
 
-function Distributor() {
-  // Ví Distributor dùng để mô phỏng
+function Distributor({ products, confirmDistributor }) {
   const [walletAddress, setWalletAddress] = useState(
     "0x3333333333333333333333333333333333333333"
   );
 
-  // Danh sách lô thuốc mẫu
-  const [products, setProducts] = useState([
-    {
-      productId: "PRD-001",
-      medicineName: "Paracetamol 500mg",
-      batchId: "BATCH-001",
-      manufacturer: "Pharma Company A",
-      distributorAddress:
-        "0x3333333333333333333333333333333333333333",
-      pharmacyAddress:
-        "0x4444444444444444444444444444444444444444",
-      status: "AtManufacturer",
-    },
-    {
-      productId: "PRD-002",
-      medicineName: "Amoxicillin 500mg",
-      batchId: "BATCH-002",
-      manufacturer: "Pharma Company B",
-      distributorAddress:
-        "0x3333333333333333333333333333333333333333",
-      pharmacyAddress:
-        "0x4444444444444444444444444444444444444444",
-      status: "AtDistributor",
-    },
-    {
-      productId: "PRD-003",
-      medicineName: "Vitamin C 1000mg",
-      batchId: "BATCH-003",
-      manufacturer: "Pharma Company C",
-      distributorAddress:
-        "0x5555555555555555555555555555555555555555",
-      pharmacyAddress:
-        "0x6666666666666666666666666666666666666666",
-      status: "AtManufacturer",
-    },
-  ]);
-
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
-  // Kiểm tra địa chỉ ví Ethereum
   const walletRegex = /^0x[a-fA-F0-9]{40}$/;
   const isValidWallet = walletRegex.test(walletAddress);
 
-  // Xác định lô thuốc thuộc ví hiện tại
+  // Lọc lô thuốc theo ví Distributor
   const myProducts = isValidWallet
     ? products.filter(
         (product) =>
@@ -59,76 +21,51 @@ function Distributor() {
       )
     : [];
 
-  // Thống kê số lô thuốc theo trạng thái
   const pendingCount = myProducts.filter(
     (product) => product.status === "AtManufacturer"
   ).length;
 
   const receivedCount = myProducts.filter(
-    (product) => product.status === "AtDistributor"
+    (product) =>
+      product.status === "AtDistributor" ||
+      product.status === "AtPharmacy"
   ).length;
 
-  // Hàm xác nhận nhận hàng
   function handleConfirm(productId) {
-    const product = products.find(
-      (item) => item.productId === productId
+    if (!isValidWallet) {
+      setMessage("Địa chỉ ví không hợp lệ!");
+      setMessageType("error");
+      return;
+    }
+
+    // Gọi hàm xử lý tại App.jsx
+    const result = confirmDistributor(
+      productId,
+      walletAddress
     );
 
-    if (!product) {
-      setMessage("Không tìm thấy lô thuốc!");
-      setMessageType("error");
-      return;
+    setMessage(result.message);
+    setMessageType(result.success ? "success" : "error");
+  }
+
+  function getStatusClass(status) {
+    if (status === "AtManufacturer") {
+      return "distributor-status pending";
     }
 
-    if (
-      !isValidWallet ||
-      product.distributorAddress.toLowerCase() !==
-        walletAddress.toLowerCase()
-    ) {
-      setMessage("Ví này không có quyền xác nhận lô thuốc!");
-      setMessageType("error");
-      return;
-    }
-
-    if (product.status !== "AtManufacturer") {
-      setMessage("Lô thuốc không ở trạng thái chờ nhận!");
-      setMessageType("error");
-      return;
-    }
-
-    // Cập nhật trạng thái bằng useState
-    const updatedProducts = products.map((item) => {
-      if (item.productId === productId) {
-        return {
-          ...item,
-          status: "AtDistributor",
-        };
-      }
-
-      return item;
-    });
-
-    setProducts(updatedProducts);
-
-    setMessage(
-      `Đã xác nhận nhận hàng thành công: ${productId}`
-    );
-    setMessageType("success");
+    return "distributor-status received";
   }
 
   return (
     <div className="distributor-page">
-
-      {/* ===== TIÊU ĐỀ ===== */}
       <div className="distributor-heading">
         <h1>🚚 Quản lý phân phối thuốc</h1>
         <p>
-          Theo dõi và xác nhận các lô thuốc được
-          chuyển giao từ nhà sản xuất.
+          Theo dõi và xác nhận các lô thuốc
+          được chuyển giao từ nhà sản xuất.
         </p>
       </div>
 
-      {/* ===== THÔNG TIN VÍ ===== */}
       <section className="distributor-section">
         <h2>Thông tin nhà phân phối</h2>
 
@@ -149,8 +86,7 @@ function Distributor() {
           />
 
           <p>
-            Đây là địa chỉ ví mô phỏng.
-            Sau này sẽ lấy từ MetaMask.
+            Ví mô phỏng, chưa kết nối MetaMask.
           </p>
 
           {!isValidWallet && (
@@ -161,7 +97,6 @@ function Distributor() {
         </div>
       </section>
 
-      {/* ===== THỐNG KÊ ===== */}
       <div className="distributor-stats">
         <div className="distributor-stat-card">
           <h3>Lô thuốc chờ nhận</h3>
@@ -174,7 +109,6 @@ function Distributor() {
         </div>
       </div>
 
-      {/* ===== DANH SÁCH LÔ THUỐC ===== */}
       <section className="distributor-section">
         <h2>Danh sách lô thuốc</h2>
 
@@ -185,7 +119,6 @@ function Distributor() {
                 <th>Product ID</th>
                 <th>Tên thuốc</th>
                 <th>Batch ID</th>
-                <th>Nhà sản xuất</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
@@ -194,9 +127,11 @@ function Distributor() {
             <tbody>
               {myProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="distributor-empty">
-                    Không có lô thuốc nào được chỉ định
-                    cho địa chỉ ví này.
+                  <td
+                    colSpan="5"
+                    className="distributor-empty"
+                  >
+                    Không có lô thuốc nào được chỉ định.
                   </td>
                 </tr>
               ) : (
@@ -205,15 +140,12 @@ function Distributor() {
                     <td>{product.productId}</td>
                     <td>{product.medicineName}</td>
                     <td>{product.batchId}</td>
-                    <td>{product.manufacturer}</td>
 
                     <td>
                       <span
-                        className={
-                          product.status === "AtDistributor"
-                            ? "distributor-status received"
-                            : "distributor-status pending"
-                        }
+                        className={getStatusClass(
+                          product.status
+                        )}
                       >
                         {product.status}
                       </span>
@@ -243,7 +175,6 @@ function Distributor() {
         </div>
       </section>
 
-      {/* ===== THÔNG BÁO ===== */}
       {message && (
         <div
           className={`distributor-message ${messageType}`}
