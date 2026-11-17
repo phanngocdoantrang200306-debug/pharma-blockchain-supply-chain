@@ -1,0 +1,12 @@
+
+RPC URL: http://127.0.0.1:7545
+Chain ID: 1337
+
+Contract: PharmaSupplychain
+Contract Address: 0xf4a7d44a3a5a4e346cb667b08e9648d4428aebb3
+
+Manufacturer wallet: 0x0456f41411140531f6fadc1e4d5a0600b74c8f2f
+Distributor wallet: 0x16ecc77beb036ef0fa6478c677a0f4e8ffe2b86f
+Pharmacy wallet: 0xed508cd9cc9f32697eb3be3d74f3d27c02f1f965
+
+ABI File: pharmaSupplychainABI.json
