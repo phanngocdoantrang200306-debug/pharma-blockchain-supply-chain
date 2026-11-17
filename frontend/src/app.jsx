@@ -11,7 +11,7 @@ import Distributor from "./pages/distributor";
 import Pharmacy from "./pages/pharmacy";
 import VerifyProduct from "./pages/verifyProduct";
 
-import "./App.css";
+import "./app.css";
 
 // Địa chỉ ví mẫu
 const MANUFACTURER_WALLET =
