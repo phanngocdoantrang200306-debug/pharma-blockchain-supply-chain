@@ -1,7 +1,7 @@
 import { Web3 } from "web3";
+import config from "./contract-config.json";
 
-export const CONTRACT_ADDRESS =
-  "0x254dffcd3277C0b1660F6d42EFbB754edaBAbC2B";
+export const CONTRACT_ADDRESS = config.contractAddress;
 
 export const CONTRACT_ABI = [
   {

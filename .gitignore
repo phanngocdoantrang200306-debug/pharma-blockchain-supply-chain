@@ -27,3 +27,6 @@ Thumbs.db
 
 # Ganache local blockchain data
 ganache-data/
+
+# Temporary blockchain test configuration
+frontend/src/contract-config.test.json
