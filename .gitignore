@@ -24,3 +24,6 @@ cache/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Ganache local blockchain data
+ganache-data/

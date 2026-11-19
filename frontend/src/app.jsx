@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { getContract } from "./contract";
 
 import Header from "./components/header";
 import Navbar from "./components/navbar";
@@ -13,258 +14,353 @@ import VerifyProduct from "./pages/verifyProduct";
 
 import "./app.css";
 
-// Địa chỉ ví mẫu
-const MANUFACTURER_WALLET =
-  "0x1111111111111111111111111111111111111111";
-
-const DISTRIBUTOR_WALLET =
-  "0x3333333333333333333333333333333333333333";
-
-const PHARMACY_WALLET =
-  "0x4444444444444444444444444444444444444444";
-
-// Dữ liệu ban đầu dùng chung
-const initialProducts = [
-  {
-    productId: "PRD-001",
-    medicineName: "Paracetamol 500mg",
-    batchId: "BATCH-001",
-    manufactureDate: "2026-01-10",
-    expiryDate: "2028-01-10",
-    manufacturerAddress: MANUFACTURER_WALLET,
-    distributorAddress: DISTRIBUTOR_WALLET,
-    pharmacyAddress: PHARMACY_WALLET,
-    status: "AtManufacturer",
-    history: [
-      {
-        role: "Manufacturer",
-        action: "Nhà sản xuất khởi tạo lô thuốc",
-        wallet: MANUFACTURER_WALLET,
-        timestamp: "2026-01-10T08:30:00",
-      },
-    ],
-  },
-  {
-    productId: "PRD-002",
-    medicineName: "Amoxicillin 500mg",
-    batchId: "BATCH-002",
-    manufactureDate: "2026-01-10",
-    expiryDate: "2028-01-10",
-    manufacturerAddress: MANUFACTURER_WALLET,
-    distributorAddress: DISTRIBUTOR_WALLET,
-    pharmacyAddress: PHARMACY_WALLET,
-    status: "AtDistributor",
-    history: [
-      {
-        role: "Manufacturer",
-        action: "Nhà sản xuất khởi tạo lô thuốc",
-        wallet: MANUFACTURER_WALLET,
-        timestamp: "2026-01-10T08:30:00",
-      },
-      {
-        role: "Distributor",
-        action: "Nhà phân phối xác nhận nhận hàng",
-        wallet: DISTRIBUTOR_WALLET,
-        timestamp: "2026-01-12T14:20:00",
-      },
-    ],
-  },
-  {
-    productId: "PRD-003",
-    medicineName: "Vitamin C 1000mg",
-    batchId: "BATCH-003",
-    manufactureDate: "2026-02-01",
-    expiryDate: "2028-02-01",
-    manufacturerAddress: MANUFACTURER_WALLET,
-    distributorAddress: DISTRIBUTOR_WALLET,
-    pharmacyAddress: PHARMACY_WALLET,
-    status: "AtPharmacy",
-    history: [
-      {
-        role: "Manufacturer",
-        action: "Nhà sản xuất khởi tạo lô thuốc",
-        wallet: MANUFACTURER_WALLET,
-        timestamp: "2026-02-01T09:00:00",
-      },
-      {
-        role: "Distributor",
-        action: "Nhà phân phối xác nhận nhận hàng",
-        wallet: DISTRIBUTOR_WALLET,
-        timestamp: "2026-02-03T11:15:00",
-      },
-      {
-        role: "Pharmacy",
-        action: "Nhà thuốc xác nhận nhận hàng",
-        wallet: PHARMACY_WALLET,
-        timestamp: "2026-02-05T15:45:00",
-      },
-    ],
-  },
+// Trạng thái lô thuốc
+const statuses = [
+  "AtManufacturer",
+  "AtDistributor",
+  "AtPharmacy"
 ];
+
+// So sánh địa chỉ ví
+const same = (a, b) =>
+  a?.toLowerCase() === b?.toLowerCase();
+
+// Chuyển timestamp thành ngày
+const dateOnly = (seconds) => {
+  const d = new Date(Number(seconds) * 1000);
+
+  return `${d.getFullYear()}-${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+};
+
+const errorText = (e) =>
+  e?.cause?.message || e?.message || String(e);
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
+  const [account, setAccount] = useState("");
 
-  // State chung của toàn ứng dụng
-  const [products, setProducts] = useState(initialProducts);
+  // Không sử dụng dữ liệu mẫu
+  const [products, setProducts] = useState([]);
 
-  // Tạo lô thuốc mới
-  function addProduct(formData) {
-    const duplicate = products.some(
-      (product) =>
-        product.batchId.toLowerCase() ===
-        formData.batchId.trim().toLowerCase()
-    );
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    if (duplicate) {
-      return {
-        success: false,
-        message: "Batch ID đã tồn tại!",
-      };
+  // ==========================================
+  // KIỂM TRA KẾT NỐI BLOCKCHAIN
+  // ==========================================
+
+  async function checkedContract() {
+    if (!window.ethereum) {
+      throw new Error("Chưa cài MetaMask.");
     }
 
-    // Product ID chỉ dùng trong bản demo
-    const productId = `PRD-${Date.now()}`;
+    const chainId = await window.ethereum.request({
+      method: "eth_chainId"
+    });
 
-    const newProduct = {
-      ...formData,
-      productId,
-      status: "AtManufacturer",
-      manufacturerAddress: MANUFACTURER_WALLET,
-      history: [
-        {
-          role: "Manufacturer",
-          action: "Nhà sản xuất khởi tạo lô thuốc",
-          wallet: MANUFACTURER_WALLET,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    };
+    if (Number(chainId) !== 1337) {
+      throw new Error("Vui lòng chọn Ganache Local.");
+    }
 
-    setProducts((previous) => [...previous, newProduct]);
-
-    return {
-      success: true,
-      productId,
-      message: `Tạo lô thuốc thành công: ${productId}`,
-    };
+    return getContract();
   }
 
-  // Distributor xác nhận nhận hàng
-  function confirmDistributor(productId, walletAddress) {
-    const product = products.find(
-      (item) => item.productId === productId
+  // ==========================================
+  // ĐỌC DỮ LIỆU BLOCKCHAIN
+  // ==========================================
+
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const contract = await checkedContract();
+
+      const ids = await contract.methods
+        .getAllProductIds()
+        .call();
+
+      const rows = await Promise.all(
+        ids.map(async (id) => {
+          const p = await contract.methods
+            .getProduct(id)
+            .call();
+
+          const history = await contract.methods
+            .getProductHistory(id)
+            .call();
+
+          return {
+            productId: String(p.productId),
+
+            medicineName: p.medicineName,
+
+            batchId: p.batchId,
+
+            manufactureDate: dateOnly(
+              p.manufactureDate
+            ),
+
+            expiryDate: dateOnly(p.expiryDate),
+
+            manufacturerAddress: p.manufacturer,
+            distributorAddress: p.distributor,
+            pharmacyAddress: p.pharmacy,
+
+            status:
+              statuses[Number(p.status)] ??
+              `Status ${p.status}`,
+
+            history: history.map((h) => ({
+              role: same(h.actor, p.manufacturer)
+                ? "Manufacturer"
+                : same(h.actor, p.distributor)
+                ? "Distributor"
+                : same(h.actor, p.pharmacy)
+                ? "Pharmacy"
+                : "Unknown",
+
+              action: h.action,
+
+              wallet: h.actor,
+
+              timestamp: new Date(
+                Number(h.timestamp) * 1000
+              ).toISOString()
+            }))
+          };
+        })
+      );
+
+      setProducts(rows);
+
+      return true;
+
+    } catch (e) {
+      setProducts([]);
+      setLoadError(errorText(e));
+
+      return false;
+
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ==========================================
+  // TỰ ĐỘNG ĐỒNG BỘ DỮ LIỆU
+  // ==========================================
+
+// ==========================================
+// TỰ ĐỘNG ĐỒNG BỘ DỮ LIỆU
+// ==========================================
+
+useEffect(() => {
+  loadProducts();
+}, [loadProducts, currentPage, account]);
+
+useEffect(() => {
+  const provider = window.ethereum;
+
+  if (!provider) return;
+
+  const handleChainChanged = () => {
+    loadProducts();
+  };
+
+  provider.on(
+    "chainChanged",
+    handleChainChanged
+  );
+
+  return () => {
+    provider.removeListener(
+      "chainChanged",
+      handleChainChanged
     );
+  };
+}, [loadProducts]);
 
-    if (!product) {
-      return {
-        success: false,
-        message: "Không tìm thấy lô thuốc!",
-      };
+  // ==========================================
+  // KIỂM TRA VÍ KÝ TRANSACTION
+  // ==========================================
+
+  async function signingAccount() {
+    const accounts = await window.ethereum.request({
+      method: "eth_accounts"
+    });
+
+    if (!account || !same(account, accounts[0])) {
+      throw new Error(
+        "Vui lòng kết nối đúng ví MetaMask."
+      );
     }
 
-    if (
-      product.distributorAddress.toLowerCase() !==
-      walletAddress.trim().toLowerCase()
-    ) {
-      return {
-        success: false,
-        message: "Ví không được chỉ định nhận lô thuốc!",
-      };
-    }
-
-    if (product.status !== "AtManufacturer") {
-      return {
-        success: false,
-        message: "Lô thuốc không ở trạng thái AtManufacturer!",
-      };
-    }
-
-    setProducts((previous) =>
-      previous.map((item) => {
-        if (item.productId !== productId) {
-          return item;
-        }
-
-        return {
-          ...item,
-          status: "AtDistributor",
-          history: [
-            ...item.history,
-            {
-              role: "Distributor",
-              action: "Nhà phân phối xác nhận nhận hàng",
-              wallet: walletAddress.trim(),
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-      })
-    );
-
-    return {
-      success: true,
-      message: `Đã xác nhận lô thuốc ${productId}!`,
-    };
+    return accounts[0];
   }
 
-  // Pharmacy xác nhận nhận hàng
-  function confirmPharmacy(productId, walletAddress) {
-    const product = products.find(
-      (item) => item.productId === productId
-    );
+  // ==========================================
+  // MANUFACTURER - TẠO LÔ THUỐC
+  // ==========================================
 
-    if (!product) {
+  async function addProduct(formData) {
+    try {
+      const contract = await checkedContract();
+
+      const from = await signingAccount();
+      // Kiểm tra quyền Nhà sản xuất
+      const manufacturerAddress = await contract.methods
+        .manufacturer()
+        .call();
+
+      if (!same(from, manufacturerAddress)) {
+        throw new Error(
+          "Access Denied: Chỉ nhà sản xuất mới được tạo lô thuốc!"
+        );
+      }
+      const manufactureDate = Math.floor(
+        new Date(
+          formData.manufactureDate + "T00:00:00"
+        ).getTime() / 1000
+      );
+
+      const expiryDate = Math.floor(
+        new Date(
+          formData.expiryDate + "T00:00:00"
+        ).getTime() / 1000
+      );
+
+      const receipt = await contract.methods
+        .createProduct(
+          formData.medicineName.trim(),
+          formData.batchId.trim(),
+          manufactureDate,
+          expiryDate,
+          formData.distributorAddress.trim(),
+          formData.pharmacyAddress.trim()
+        )
+        .send({
+          from,
+          gas: "5000000"
+        });
+
+      console.log("Transaction:", receipt);
+
+      // Lấy Product ID từ event
+      const id =
+        receipt.events?.ProductCreated
+          ?.returnValues?.productId;
+
+      // Tải lại dữ liệu Blockchain
+      const refreshed = await loadProducts();
+
+      return {
+        success: true,
+
+        productId:
+          id == null ? undefined : String(id),
+
+        message:
+          "Tạo lô thuốc thành công!" +
+          (id == null ? "" : ` Product ID: ${id}`) +
+          (refreshed
+            ? ""
+            : " Hãy tải lại danh sách.")
+      };
+
+    } catch (e) {
       return {
         success: false,
-        message: "Không tìm thấy lô thuốc!",
+        message: errorText(e)
       };
     }
-
-    if (
-      product.pharmacyAddress.toLowerCase() !==
-      walletAddress.trim().toLowerCase()
-    ) {
-      return {
-        success: false,
-        message: "Ví không được chỉ định nhận lô thuốc!",
-      };
-    }
-
-    if (product.status !== "AtDistributor") {
-      return {
-        success: false,
-        message: "Lô thuốc chưa được Distributor bàn giao!",
-      };
-    }
-
-    setProducts((previous) =>
-      previous.map((item) => {
-        if (item.productId !== productId) {
-          return item;
-        }
-
-        return {
-          ...item,
-          status: "AtPharmacy",
-          history: [
-            ...item.history,
-            {
-              role: "Pharmacy",
-              action: "Nhà thuốc xác nhận nhận hàng",
-              wallet: walletAddress.trim(),
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-      })
-    );
-
-    return {
-      success: true,
-      message: `Nhà thuốc đã tiếp nhận lô ${productId}!`,
-    };
   }
+
+  // ==========================================
+  // XÁC NHẬN CHUYỂN GIAO
+  // ==========================================
+
+  async function confirm(productId, role) {
+    try {
+      const contract = await checkedContract();
+
+      const from = await signingAccount();
+
+      const p = await contract.methods
+        .getProduct(productId)
+        .call();
+
+      if (!p.exists) {
+        throw new Error("Không tìm thấy lô thuốc.");
+      }
+
+      const distributor = role === "Distributor";
+
+      // Kiểm tra quyền xác nhận
+      if (
+        !same(
+          from,
+          distributor ? p.distributor : p.pharmacy
+        )
+      ) {
+        throw new Error(
+          "Ví không được chỉ định nhận lô thuốc."
+        );
+      }
+
+      // Kiểm tra trạng thái
+      if (
+        Number(p.status) !== (distributor ? 0 : 1)
+      ) {
+        throw new Error(
+          "Trạng thái lô thuốc không phù hợp."
+        );
+      }
+
+      // Chọn hàm Smart Contract
+      const method = distributor
+        ? contract.methods.confirmDistributor
+        : contract.methods.confirmPharmacy;
+
+      await method(productId).send({
+        from,
+        gas: "5000000"
+      });
+
+      const refreshed = await loadProducts();
+
+      return {
+        success: true,
+        message:
+          `Đã xác nhận lô thuốc ${productId}!` +
+          (refreshed
+            ? ""
+            : " Hãy tải lại danh sách.")
+      };
+
+    } catch (e) {
+      return {
+        success: false,
+        message: errorText(e)
+      };
+    }
+  }
+
+  // Distributor
+  const confirmDistributor = (id) =>
+    confirm(id, "Distributor");
+
+  // Pharmacy
+  const confirmPharmacy = (id) =>
+    confirm(id, "Pharmacy");
+
+  // ==========================================
+  // RENDER PAGE
+  // ==========================================
 
   function renderPage() {
     switch (currentPage) {
@@ -273,6 +369,7 @@ function App() {
           <Manufacturer
             products={products}
             addProduct={addProduct}
+            account={account}
           />
         );
 
@@ -281,6 +378,7 @@ function App() {
           <Distributor
             products={products}
             confirmDistributor={confirmDistributor}
+            account={account}
           />
         );
 
@@ -289,20 +387,29 @@ function App() {
           <Pharmacy
             products={products}
             confirmPharmacy={confirmPharmacy}
+            account={account}
           />
         );
 
       case "verify":
-        return <VerifyProduct products={products} />;
+        return (
+          <VerifyProduct products={products} />
+        );
 
       default:
-        return <Home setCurrentPage={setCurrentPage} />;
+        return (
+          <Home setCurrentPage={setCurrentPage} />
+        );
     }
   }
 
   return (
     <div className="app">
-      <Header />
+
+      <Header
+        account={account}
+        setAccount={setAccount}
+      />
 
       <Navbar
         currentPage={currentPage}
@@ -310,10 +417,24 @@ function App() {
       />
 
       <main className="main-content">
+
+        {loading && (
+          <p role="status">
+            Đang tải dữ liệu Blockchain...
+          </p>
+        )}
+
+        {loadError && (
+          <p role="alert">{loadError}</p>
+        )}
+
+
         {renderPage()}
+
       </main>
 
       <Footer />
+
     </div>
   );
 }

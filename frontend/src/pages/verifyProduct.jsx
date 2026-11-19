@@ -2,15 +2,18 @@
 import { useState } from "react";
 
 function VerifyProduct({ products }) {
+
   const [productId, setProductId] = useState("");
+
   const [searchedId, setSearchedId] = useState("");
+
   const [message, setMessage] = useState("");
 
-  // Tìm sản phẩm trong danh sách chung
   const selectedProduct = products.find(
     (item) => item.productId === searchedId
   );
 
+  // Tra cứu thuốc
   function handleSearch(event) {
     event.preventDefault();
 
@@ -28,9 +31,11 @@ function VerifyProduct({ products }) {
 
     if (!product) {
       setSearchedId("");
+
       setMessage(
         "Không tìm thấy lô thuốc với Product ID này!"
       );
+
       return;
     }
 
@@ -38,29 +43,36 @@ function VerifyProduct({ products }) {
     setMessage("");
   }
 
+  // Định dạng ngày tháng
   function formatDate(dateString) {
+
     if (!dateString) {
       return "Không có dữ liệu";
     }
 
-    // Ngày sản xuất và hạn dùng
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split("-");
+      const [year, month, day] =
+        dateString.split("-");
+
       return `${day}/${month}/${year}`;
     }
 
-    // Thời gian sự kiện có cả ngày và giờ
-    return new Date(dateString).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return new Date(dateString).toLocaleString(
+      "vi-VN",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
   }
 
+  // Trạng thái tiếng Việt
   function getStatusText(status) {
     switch (status) {
+
       case "AtManufacturer":
         return "Đang ở nhà sản xuất";
 
@@ -77,31 +89,39 @@ function VerifyProduct({ products }) {
 
   return (
     <div className="verify-page">
+
       <div className="verify-heading">
+
         <h1>🔍 Tra cứu nguồn gốc thuốc</h1>
+
         <p>
           Nhập Product ID để kiểm tra thông tin,
           trạng thái và lịch sử chuyển giao lô thuốc.
         </p>
+
       </div>
 
-      {/* ===== FORM TRA CỨU ===== */}
+      {/* FORM TRA CỨU */}
+
       <section className="verify-section">
+
         <h2>Tra cứu Product ID</h2>
 
         <form
           onSubmit={handleSearch}
           className="verify-form"
         >
+
           <label htmlFor="verifyProductId">
             Mã định danh lô thuốc
           </label>
 
           <div className="verify-search-row">
+
             <input
               id="verifyProductId"
               type="text"
-              placeholder="Ví dụ: PRD-001"
+              placeholder="Ví dụ: 1"
               value={productId}
               onChange={(event) =>
                 setProductId(event.target.value)
@@ -114,12 +134,13 @@ function VerifyProduct({ products }) {
             >
               Tra cứu
             </button>
+
           </div>
+
         </form>
 
         <p className="verify-hint">
-          Dữ liệu mẫu: PRD-001, PRD-002, PRD-003
-          hoặc Product ID vừa tạo trong Manufacturer.
+          Nhập Product ID đã được tạo trên Blockchain.
         </p>
 
         {message && (
@@ -127,35 +148,48 @@ function VerifyProduct({ products }) {
             {message}
           </p>
         )}
+
       </section>
 
-      {/* ===== KẾT QUẢ TRA CỨU ===== */}
+      {/* KẾT QUẢ TRA CỨU */}
+
       {selectedProduct && (
         <>
+
           <section className="verify-section">
+
             <div className="verify-result-header">
+
               <div>
                 <span className="verify-label">
                   PRODUCT INFORMATION
                 </span>
 
-                <h2>{selectedProduct.medicineName}</h2>
+                <h2>
+                  {selectedProduct.medicineName}
+                </h2>
               </div>
 
               <span className="verify-status">
                 {getStatusText(selectedProduct.status)}
               </span>
+
             </div>
 
             <div className="verify-info-grid">
+
               <div>
                 <span>Product ID</span>
-                <strong>{selectedProduct.productId}</strong>
+                <strong>
+                  {selectedProduct.productId}
+                </strong>
               </div>
 
               <div>
                 <span>Batch ID</span>
-                <strong>{selectedProduct.batchId}</strong>
+                <strong>
+                  {selectedProduct.batchId}
+                </strong>
               </div>
 
               <div>
@@ -170,22 +204,31 @@ function VerifyProduct({ products }) {
               <div>
                 <span>Hạn sử dụng</span>
                 <strong>
-                  {formatDate(selectedProduct.expiryDate)}
+                  {formatDate(
+                    selectedProduct.expiryDate
+                  )}
                 </strong>
               </div>
 
               <div>
                 <span>Trạng thái hiện tại</span>
-                <strong>{selectedProduct.status}</strong>
+                <strong>
+                  {selectedProduct.status}
+                </strong>
               </div>
+
             </div>
+
           </section>
 
-          {/* ===== THÔNG TIN CÁC VÍ ===== */}
+          {/* THÔNG TIN CÁC VÍ */}
+
           <section className="verify-section">
+
             <h2>Các bên trong chuỗi cung ứng</h2>
 
             <div className="verify-wallet-list">
+
               <div>
                 <strong>🏭 Manufacturer</strong>
                 <p>
@@ -206,24 +249,32 @@ function VerifyProduct({ products }) {
                   {selectedProduct.pharmacyAddress}
                 </p>
               </div>
+
             </div>
+
           </section>
 
-          {/* ===== LỊCH SỬ CHUYỂN GIAO ===== */}
+          {/* LỊCH SỬ BLOCKCHAIN */}
+
           <section className="verify-section">
+
             <h2>Lịch sử chuyển giao lô thuốc</h2>
 
             <div className="verify-timeline">
+
               {selectedProduct.history.map(
                 (historyEvent, index) => (
+
                   <div
                     className="verify-timeline-item"
                     key={index}
                   >
+
                     <div className="verify-timeline-dot">
                     </div>
 
                     <div className="verify-timeline-content">
+
                       <span className="verify-timeline-role">
                         {historyEvent.role}
                       </span>
@@ -241,10 +292,14 @@ function VerifyProduct({ products }) {
                         Ví xác nhận:{" "}
                         {historyEvent.wallet}
                       </p>
+
                     </div>
+
                   </div>
+
                 )
               )}
+
             </div>
 
             {selectedProduct.status !== "AtPharmacy" && (
@@ -253,14 +308,17 @@ function VerifyProduct({ products }) {
                 quy trình chuyển giao đến nhà thuốc.
               </p>
             )}
+
           </section>
+
         </>
       )}
 
       <p className="verify-demo-note">
-        Hệ thống đang sử dụng dữ liệu mô phỏng.
-        Lịch sử chưa được xác thực trên Blockchain.
+        Thông tin và lịch sử được đọc từ Smart Contract
+        trên Ganache.
       </p>
+
     </div>
   );
 }
