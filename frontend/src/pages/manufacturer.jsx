@@ -10,7 +10,7 @@ const emptyForm = {
   pharmacyAddress: "",
 };
 
-function Manufacturer({ products, addProduct }) {
+function Manufacturer({ products, addProduct, account }) {
   const [formData, setFormData] = useState(emptyForm);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -24,7 +24,7 @@ function Manufacturer({ products, addProduct }) {
     });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     // Kiểm tra dữ liệu trống
@@ -38,14 +38,18 @@ function Manufacturer({ products, addProduct }) {
       return;
     }
 
-    // Kiểm tra ngày sản xuất và hạn sử dụng
-    if (formData.expiryDate <= formData.manufactureDate) {
-      setMessage("Hạn sử dụng phải sau ngày sản xuất!");
+    // Kiểm tra ngày
+    if (
+      formData.expiryDate <= formData.manufactureDate
+    ) {
+      setMessage(
+        "Hạn sử dụng phải sau ngày sản xuất!"
+      );
       setMessageType("error");
       return;
     }
 
-    // Kiểm tra định dạng ví
+    // Kiểm tra địa chỉ ví
     const walletRegex = /^0x[a-fA-F0-9]{40}$/;
 
     if (
@@ -68,18 +72,25 @@ function Manufacturer({ products, addProduct }) {
       return;
     }
 
-    // Gọi hàm được truyền từ App.jsx
-    const result = addProduct({
+    // Gọi hàm trong App.jsx
+    const result = await addProduct({
       ...formData,
+
       medicineName: formData.medicineName.trim(),
+
       batchId: formData.batchId.trim(),
+
       distributorAddress:
         formData.distributorAddress.trim(),
-      pharmacyAddress: formData.pharmacyAddress.trim(),
+
+      pharmacyAddress:
+        formData.pharmacyAddress.trim(),
     });
 
     setMessage(result.message);
-    setMessageType(result.success ? "success" : "error");
+    setMessageType(
+      result.success ? "success" : "error"
+    );
 
     if (result.success) {
       setFormData(emptyForm);
@@ -88,8 +99,10 @@ function Manufacturer({ products, addProduct }) {
 
   return (
     <div className="manufacturer-page">
+
       <div className="manufacturer-heading">
         <h1>🏭 Quản lý sản xuất thuốc</h1>
+
         <p>
           Tạo và quản lý các lô thuốc trước khi chuyển
           giao đến nhà phân phối.
@@ -97,13 +110,16 @@ function Manufacturer({ products, addProduct }) {
       </div>
 
       <section className="manufacturer-section">
+
         <h2>Tạo lô thuốc mới</h2>
 
         <form
           onSubmit={handleSubmit}
           className="manufacturer-form"
         >
+
           <div className="manufacturer-form-grid">
+
             <div className="manufacturer-form-group">
               <label htmlFor="medicineName">
                 Tên thuốc
@@ -197,6 +213,7 @@ function Manufacturer({ products, addProduct }) {
                 required
               />
             </div>
+
           </div>
 
           <button
@@ -205,6 +222,7 @@ function Manufacturer({ products, addProduct }) {
           >
             + Tạo lô thuốc
           </button>
+
         </form>
 
         {message && (
@@ -215,13 +233,16 @@ function Manufacturer({ products, addProduct }) {
             {message}
           </p>
         )}
+
       </section>
 
       <section className="manufacturer-section">
         <h2>Danh sách lô thuốc</h2>
 
         <div className="manufacturer-table-wrapper">
+
           <table className="manufacturer-table">
+
             <thead>
               <tr>
                 <th>Product ID</th>
@@ -243,10 +264,15 @@ function Manufacturer({ products, addProduct }) {
               ) : (
                 products.map((product) => (
                   <tr key={product.productId}>
+
                     <td>{product.productId}</td>
+
                     <td>{product.medicineName}</td>
+
                     <td>{product.batchId}</td>
+
                     <td>{product.manufactureDate}</td>
+
                     <td>{product.expiryDate}</td>
 
                     <td>
@@ -254,13 +280,17 @@ function Manufacturer({ products, addProduct }) {
                         {product.status}
                       </span>
                     </td>
+
                   </tr>
                 ))
               )}
             </tbody>
+
           </table>
+
         </div>
       </section>
+
     </div>
   );
 }

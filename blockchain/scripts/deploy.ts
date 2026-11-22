@@ -1,13 +1,12 @@
 
 import { network } from "hardhat";
+import { writeFileSync } from "node:fs";
 
 async function main() {
-  // 1. Kết nối mạng được chọn
   const { viem, networkName } = await network.create();
 
   console.log("Network:", networkName);
 
-  // 2. Lấy danh sách ví từ Ganache
   const wallets = await viem.getWalletClients();
 
   if (wallets.length < 3) {
@@ -16,25 +15,14 @@ async function main() {
     );
   }
 
-  // Ví đầu tiên sẽ là Manufacturer
   const deployer = wallets[0];
+  const distributor = wallets[1];
+  const pharmacy = wallets[2];
 
-  console.log(
-    "Manufacturer wallet:",
-    deployer.account.address
-  );
+  console.log("Manufacturer:", deployer.account.address);
+  console.log("Distributor:", distributor.account.address);
+  console.log("Pharmacy:", pharmacy.account.address);
 
-  console.log(
-    "Distributor wallet:",
-    wallets[1].account.address
-  );
-
-  console.log(
-    "Pharmacy wallet:",
-    wallets[2].account.address
-  );
-
-  // 3. Deploy Smart Contract
   console.log("Dang deploy PharmaSupplychain...");
 
   const contract = await viem.deployContract(
@@ -47,18 +35,15 @@ async function main() {
     }
   );
 
-  // 4. Hiển thị địa chỉ sau khi deploy
   console.log("Deploy thanh cong!");
   console.log("Contract Address:", contract.address);
 
-  // 5. Đọc dữ liệu từ contract để kiểm tra
   const manufacturer = await contract.read.manufacturer();
   const productCount = await contract.read.productCount();
 
   console.log("Manufacturer on-chain:", manufacturer);
   console.log("Product Count:", productCount.toString());
 
-  // 6. Kiểm tra đúng Manufacturer
   if (
     manufacturer.toLowerCase() !==
     deployer.account.address.toLowerCase()
@@ -66,6 +51,35 @@ async function main() {
     throw new Error("Manufacturer khong khop!");
   }
 
+  const publicClient = await viem.getPublicClient();
+  const chainId = await publicClient.getChainId();
+
+  const config = {
+    contractAddress: contract.address,
+    chainId: chainId,
+    manufacturer: deployer.account.address,
+    distributor: distributor.account.address,
+    pharmacy: pharmacy.account.address,
+  };
+
+  // Ganache Test khong ghi de cau hinh demo chinh
+  const fileName =
+    networkName === "ganache"
+      ? "contract-config.json"
+      : "contract-config.test.json";
+
+  const configPath = new URL(
+    "../../frontend/src/" + fileName,
+    import.meta.url
+  );
+
+  writeFileSync(
+    configPath,
+    JSON.stringify(config, null, 2),
+    "utf8"
+  );
+
+  console.log("Da cap nhat " + fileName);
   console.log("Kiem tra contract thanh cong!");
 }
 

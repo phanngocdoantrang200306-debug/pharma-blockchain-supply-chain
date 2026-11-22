@@ -1,10 +1,14 @@
 
 import { useState } from "react";
 
-function Distributor({ products, confirmDistributor }) {
-  const [walletAddress, setWalletAddress] = useState(
-    "0x3333333333333333333333333333333333333333"
-  );
+function Distributor({
+  products,
+  confirmDistributor,
+  account
+}) {
+  const walletAddress = account || "";
+
+  const [pending, setPending] = useState(false);
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -12,7 +16,7 @@ function Distributor({ products, confirmDistributor }) {
   const walletRegex = /^0x[a-fA-F0-9]{40}$/;
   const isValidWallet = walletRegex.test(walletAddress);
 
-  // Lọc lô thuốc theo ví Distributor
+  // Lọc thuốc được chỉ định cho Distributor
   const myProducts = isValidWallet
     ? products.filter(
         (product) =>
@@ -22,7 +26,8 @@ function Distributor({ products, confirmDistributor }) {
     : [];
 
   const pendingCount = myProducts.filter(
-    (product) => product.status === "AtManufacturer"
+    (product) =>
+      product.status === "AtManufacturer"
   ).length;
 
   const receivedCount = myProducts.filter(
@@ -31,21 +36,33 @@ function Distributor({ products, confirmDistributor }) {
       product.status === "AtPharmacy"
   ).length;
 
-  function handleConfirm(productId) {
+  // Xác nhận bằng Blockchain
+  async function handleConfirm(productId) {
     if (!isValidWallet) {
       setMessage("Địa chỉ ví không hợp lệ!");
       setMessageType("error");
       return;
     }
 
-    // Gọi hàm xử lý tại App.jsx
-    const result = confirmDistributor(
-      productId,
-      walletAddress
-    );
+    if (pending) return;
 
-    setMessage(result.message);
-    setMessageType(result.success ? "success" : "error");
+    setPending(true);
+
+    try {
+      const result = await confirmDistributor(
+        productId,
+        walletAddress
+      );
+
+      setMessage(result.message);
+
+      setMessageType(
+        result.success ? "success" : "error"
+      );
+
+    } finally {
+      setPending(false);
+    }
   }
 
   function getStatusClass(status) {
@@ -58,8 +75,10 @@ function Distributor({ products, confirmDistributor }) {
 
   return (
     <div className="distributor-page">
+
       <div className="distributor-heading">
         <h1>🚚 Quản lý phân phối thuốc</h1>
+
         <p>
           Theo dõi và xác nhận các lô thuốc
           được chuyển giao từ nhà sản xuất.
@@ -67,9 +86,11 @@ function Distributor({ products, confirmDistributor }) {
       </div>
 
       <section className="distributor-section">
+
         <h2>Thông tin nhà phân phối</h2>
 
         <div className="distributor-wallet">
+
           <label htmlFor="distributorWallet">
             Địa chỉ ví Distributor
           </label>
@@ -78,15 +99,12 @@ function Distributor({ products, confirmDistributor }) {
             id="distributorWallet"
             type="text"
             value={walletAddress}
-            onChange={(event) => {
-              setWalletAddress(event.target.value);
-              setMessage("");
-            }}
-            placeholder="Nhập địa chỉ ví 0x..."
+            readOnly
+            placeholder="Kết nối MetaMask trước"
           />
 
           <p>
-            Ví mô phỏng, chưa kết nối MetaMask.
+            Địa chỉ ví đang kết nối MetaMask.
           </p>
 
           {!isValidWallet && (
@@ -94,10 +112,13 @@ function Distributor({ products, confirmDistributor }) {
               Địa chỉ ví không hợp lệ!
             </p>
           )}
+
         </div>
+
       </section>
 
       <div className="distributor-stats">
+
         <div className="distributor-stat-card">
           <h3>Lô thuốc chờ nhận</h3>
           <p>{pendingCount}</p>
@@ -107,13 +128,17 @@ function Distributor({ products, confirmDistributor }) {
           <h3>Lô thuốc đã nhận</h3>
           <p>{receivedCount}</p>
         </div>
+
       </div>
 
       <section className="distributor-section">
+
         <h2>Danh sách lô thuốc</h2>
 
         <div className="distributor-table-wrapper">
+
           <table className="distributor-table">
+
             <thead>
               <tr>
                 <th>Product ID</th>
@@ -125,6 +150,7 @@ function Distributor({ products, confirmDistributor }) {
             </thead>
 
             <tbody>
+
               {myProducts.length === 0 ? (
                 <tr>
                   <td
@@ -136,9 +162,13 @@ function Distributor({ products, confirmDistributor }) {
                 </tr>
               ) : (
                 myProducts.map((product) => (
+
                   <tr key={product.productId}>
+
                     <td>{product.productId}</td>
+
                     <td>{product.medicineName}</td>
+
                     <td>{product.batchId}</td>
 
                     <td>
@@ -152,27 +182,49 @@ function Distributor({ products, confirmDistributor }) {
                     </td>
 
                     <td>
+
                       {product.status === "AtManufacturer" ? (
+
                         <button
                           className="distributor-confirm-btn"
+                          disabled={pending}
                           onClick={() =>
-                            handleConfirm(product.productId)
+                            handleConfirm(
+                              product.productId
+                            )
                           }
                         >
                           Xác nhận nhận hàng
                         </button>
-                      ) : (
+
+                      ) : [
+                        "AtDistributor",
+                        "AtPharmacy"
+                      ].includes(product.status) ? (
+
                         <span className="distributor-completed">
                           Đã xác nhận
                         </span>
+
+                      ) : (
+                        <span>
+                          Trạng thái chưa xác định
+                        </span>
                       )}
+
                     </td>
+
                   </tr>
+
                 ))
               )}
+
             </tbody>
+
           </table>
+
         </div>
+
       </section>
 
       {message && (
@@ -183,6 +235,7 @@ function Distributor({ products, confirmDistributor }) {
           {message}
         </div>
       )}
+
     </div>
   );
 }
